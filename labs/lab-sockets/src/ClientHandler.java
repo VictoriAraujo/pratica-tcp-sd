@@ -5,34 +5,47 @@ import java.io.IOException;
 import java.net.Socket;
 
 class ClientHandler extends Thread {
-    DataInputStream in;
-    DataOutputStream out;
-    Socket clientSocket;
+    private final DataInputStream in;
+    private final DataOutputStream out;
+    private final Socket clientSocket;
 
-    public ClientHandler(Socket aClientSocket) {
+    public ClientHandler(Socket clientSocket) throws IOException {
+        this.clientSocket = clientSocket;
+        this.in = new DataInputStream(clientSocket.getInputStream());
+        this.out = new DataOutputStream(clientSocket.getOutputStream());
+        System.out.println("[SERVER] Novo cliente conectado: " + clientSocket.getRemoteSocketAddress());
+    }
+
+    @Override
+    public void run() {
         try {
-            clientSocket = aClientSocket;
-            in = new DataInputStream(clientSocket.getInputStream());
-            out = new DataOutputStream(clientSocket.getOutputStream());
+            while (true) {
+                String message = in.readUTF(); 
+                System.out.println("[SERVER] Mensagem de " + clientSocket.getRemoteSocketAddress() + ": " + message);
+
+                String response = message.toUpperCase();
+                out.writeUTF(response);
+
+                if ("SAIR".equalsIgnoreCase(message)) {
+                    break;
+                }
+            }
+        } catch (EOFException e) {
+            System.out.println("[SERVER] Cliente desconectou: " + clientSocket.getRemoteSocketAddress());
         } catch (IOException e) {
-            System.out.println("Connection:" + e.getMessage());
+            System.err.println("[SERVER] Erro com " + clientSocket.getRemoteSocketAddress() + ": " + e.getMessage());
+        } finally {
+            closeResources();
         }
     }
 
-    public void run() {
-        try { // an echo server
-            String data = in.readUTF(); // read a line of data from the stream
-            System.out.println("Mensagem recebida: " + data);
-            out.writeUTF(data.toUpperCase());
-        } catch (EOFException e) {
-            System.out.println("EOF:" + e.getMessage());
+    private void closeResources() {
+        try {
+            if (in != null) in.close();
+            if (out != null) out.close();
+            if (clientSocket != null) clientSocket.close();
         } catch (IOException e) {
-            System.out.println("readline:" + e.getMessage());
-        } finally {
-            try {
-                clientSocket.close();
-            } catch (IOException e) {
-                /* close failed */}
+            System.err.println("[SERVER] Erro ao fechar recursos: " + e.getMessage());
         }
     }
 }

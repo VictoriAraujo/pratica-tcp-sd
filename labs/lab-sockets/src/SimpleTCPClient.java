@@ -8,53 +8,56 @@ public class SimpleTCPClient {
     private Socket socket;
     private DataInputStream input;
     private DataOutputStream output;
+    private Scanner scanner;
 
     public void start(String serverIp, int serverPort) throws IOException {
-        // Cria socket de comunicacao com o servidor e obtem canais de entrada e saida
-        System.out.println("[C1] Conectando com servidor " + serverIp + ":" + serverPort);
+        System.out.println("[C1] Conectando ao servidor " + serverIp + ":" + serverPort);
         socket = new Socket(serverIp, serverPort);
         input = new DataInputStream(socket.getInputStream());
         output = new DataOutputStream(socket.getOutputStream());
+        scanner = new Scanner(System.in);
 
-        // Espera mensagem ser digitada da entrada padrão (teclado)
-        System.out.println("[C2] Conexão estabelecida, eu sou o cliente: " + socket.getLocalSocketAddress());
-        System.out.print("Digite uma mensagem: ");
-        Scanner scanner = new Scanner(System.in);
-        String msg = scanner.nextLine();
-        scanner.close();
-        
-        // Envia mensagem para o servidor no canal de saida
-        System.out.println("[C3] Enviando mensagem para servidor");
-        output.writeUTF(msg);
-        System.out.println("[C4] Mensagem enviada, recebendo resposta");
-        
-        // Recebendo resposta do servidor
-        String response = input.readUTF();
-        System.out.println("[C5] Resposta recebida: " + response);
+        System.out.println("[C2] Conexão estabelecida. Digite 'sair' para encerrar.");
+
+        while (true) {
+            System.out.print("Digite uma mensagem: ");
+            String msg = scanner.nextLine();
+
+            if ("sair".equalsIgnoreCase(msg)) {
+                break;
+            }
+
+            output.writeUTF(msg);
+            System.out.println("[C3] Mensagem enviada: " + msg);
+
+            String response = input.readUTF();
+            System.out.println("[C4] Resposta do servidor: " + response);
+        }
     }
- 
+
     public void stop() {
         try {
-            input.close();
-            output.close();
-            socket.close();
+            if (scanner != null) scanner.close();
+            if (input != null) input.close();
+            if (output != null) output.close();
+            if (socket != null) socket.close();
+            System.out.println("[C5] Conexão encerrada.");
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Erro ao fechar recursos: " + e.getMessage());
         }
     }
 
     public static void main(String[] args) {
-        String serverIp = "0.0.0.0";
+        String serverIp = "localhost"; 
         int serverPort = 6666;
+        SimpleTCPClient client = new SimpleTCPClient();
+
         try {
-            // Cria e roda cliente
-            SimpleTCPClient client = new SimpleTCPClient();
             client.start(serverIp, serverPort);
-            
-            // Finaliza cliente
-            client.stop();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Erro no cliente: " + e.getMessage());
+        } finally {
+            client.stop();
         }
     }
 }

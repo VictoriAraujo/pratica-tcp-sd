@@ -7,61 +7,74 @@ import java.util.Scanner;
 
 public class SimpleUDPClient {
     private DatagramSocket socket;
+    private InetAddress serverAddress;
+    private int serverPort;
     private byte[] buffer;
 
     public void start(String serverIp, int serverPort) throws IOException {
-        // Iniciando socket e buffer
-        System.out.println("[C1] Criando socket UDP para enviar mensagem para servidor");
+        System.out.println("[C1] Criando socket UDP para comunicação com servidor");
         socket = new DatagramSocket();
+        this.serverAddress = InetAddress.getByName(serverIp);
+        this.serverPort = serverPort;
         this.buffer = new byte[1024];
 
-        // Lendo mensagem do teclado
         Scanner scanner = new Scanner(System.in);
-        System.out.print("Digite uma mensagem: ");
-        String msg = scanner.nextLine();
-        scanner.close();
+        
+        try {
+            while (true) {
+                System.out.print("Digite uma mensagem (ou 'sair' para encerrar): ");
+                String msg = scanner.nextLine();
+                
+                if ("sair".equalsIgnoreCase(msg)) {
+                    break;
+                }
 
-        // Enviando mensagem para servidor
-        System.out.println("[C2] Enviando msg para " + serverIp + ":" + serverPort + ": " + msg);
-        sendMessage(msg, serverIp, serverPort);
-        System.out.println("[C3] Mensagem enviada, recebendo resposta");
-
-        // Recebendo resposta do servidor
-        String response = receiveMessage();
-        System.out.println("[C4] Resposta recebida: " + response);
+                System.out.println("[C2] Enviando msg para " + serverIp + ":" + serverPort + ": " + msg);
+                sendMessage(msg);
+                
+                String response = receiveMessage();
+                System.out.println("[C3] Resposta recebida: " + response);
+            }
+        } finally {
+            scanner.close();
+            stop();
+        }
     }
 
-    public void sendMessage(String msg, String ip, int port) throws IOException {
-        InetAddress address = InetAddress.getByName(ip);
-        DatagramPacket packet = new DatagramPacket(msg.getBytes(), msg.length(), address, port);
+    public void sendMessage(String msg) throws IOException {
+        DatagramPacket packet = new DatagramPacket(
+            msg.getBytes(), 
+            msg.length(), 
+            serverAddress, 
+            serverPort
+        );
         socket.send(packet);
     }
 
     public String receiveMessage() throws IOException {
-        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);	
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         socket.receive(packet);
-        return new String(packet.getData());
+        return new String(packet.getData(), 0, packet.getLength());
     }
 
     public void stop() {
-        this.socket.close();
-        this.buffer = null;
+        if (socket != null && !socket.isClosed()) {
+            socket.close();
+            System.out.println("[C4] Conexão encerrada.");
+        }
     }
 
     public static void main(String[] args) {
-        String serverIp = "127.0.0.1";
+        String serverIp = "127.0.0.1"; 
         int serverPort = 6789;
-		try {
-            // Criando e iniciando cliente
+        
+        try {
             SimpleUDPClient client = new SimpleUDPClient();
             client.start(serverIp, serverPort);
-
-            // Finalizando cliente
-            client.stop();
-		} catch (SocketException e){
-            System.out.println("Socket: " + e.getMessage());
-		} catch (IOException e){
-            System.out.println("IO: " + e.getMessage());
-		}
+        } catch (SocketException e) {
+            System.out.println("Erro no socket: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("Erro de E/S: " + e.getMessage());
+        }
     }
 }
